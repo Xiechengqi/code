@@ -9,6 +9,228 @@
 ----
 
 
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+----
+
+
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+----
+
+
+**https://github.com/hanchuanchuan/goInception/blob/master/.github/workflows/go.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Go
+on:
+  push:
+    branches:
+      - master
+      - release/*
+  pull_request:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-16.04
+    steps:
+      # - name: show mysql info
+      #   run: ls -l /etc/my* || true
+
+      - name: Set MySQL Config
+        run: |
+          sudo service mysql stop
+          sudo mkdir -p /etc/mysql/ || true
+          echo '[mysqld]'            | sudo tee /etc/mysql/my.cnf
+          echo 'server-id=111'         | sudo tee -a /etc/mysql/my.cnf
+          echo 'log-bin=on'       | sudo tee -a /etc/mysql/my.cnf
+          echo 'binlog-format = row' | sudo tee -a /etc/mysql/my.cnf
+          echo 'gtid-mode = ON'      | sudo tee -a /etc/mysql/my.cnf
+          echo 'enforce_gtid_consistency = ON' | sudo tee -a /etc/mysql/my.cnf
+          echo 'lower_case_table_names = 1' | sudo tee -a /etc/mysql/my.cnf
+          echo 'character_set_server = utf8' | sudo tee -a /etc/mysql/my.cnf
+          # cat /etc/mysql/my.cnf || true
+      - name: Startup MySQL
+        run: |
+          sudo service mysql start || true
+          sudo tail -100 /var/log/mysql/error.log
+      - name: Show MySQL Variables
+        run: mysql -uroot -p'root' -e "show variables where Variable_name in ('server_id','log_bin','lower_case_table_names','version');"
+
+      # - name: Show MySQL buffer_pool
+      #   run: mysql -uroot -p'root' -e "show variables like '%buffer_pool%'"
+
+      - name: Init MySQL Database and User
+        run: |
+          mysql -uroot -p'root' -e "create database if not exists test DEFAULT CHARACTER SET utf8;create database if not exists test_inc DEFAULT CHARACTER SET utf8;"
+          mysql -uroot -p'root' -e "grant all on *.* to test@'127.0.0.1' identified by 'test';FLUSH PRIVILEGES;"
+          mysql -uroot -p'root' -e "show databases;show variables like 'explicit_defaults_for_timestamp';"
+      # - name: Setup MySQL
+      #   uses: samin/mysql-action@v1
+      #   with:
+      #     host port: 3306 # Optional, default value is 3306. The port of host
+      #     container name: mysql
+      #     container label: mysql
+      #     container port: 3306
+      #     character set server: 'utf8mb4'
+      #     collation server: 'utf8_general_ci'
+      #     lower case table names: 1
+      #     log bin: 1
+      #     server id: 111
+      #     binlog format: 'row'
+      #     gtid mode: 1
+      #     bind address: '*'
+      #     enforce gtid consistency: 1
+      #     skip name resolve: 1
+      #     mysql version: '5.7'
+      #     mysql database: 'test'
+      #     mysql root password: 'root'
+      #     mysql user: 'test'
+      #     mysql password: 'test'
+
+      # - name: docker ps
+      #   run: |
+      #     date "+%Y-%m-%d %H:%M:%S"
+      #     docker ps
+      #     # docker logs $(docker ps -q)
+
+      - name: Waiting for MySQL to be ready
+        run: |
+          sleep 2
+          for i in `seq 1 10`;
+          do
+            nc -z 127.0.0.1 3306 && echo Success && exit 0
+            echo -n .
+            sleep 2
+          done
+          echo Failed waiting for MySQL && exit 1
+      - name: Set up Go 1.13
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+
+      - name: Install pt-online-schema-change
+        run: |
+          sudo cp ./bin/pt-online-schema-change  /usr/local/bin/pt-online-schema-change
+          sudo chmod +x /usr/local/bin/pt-online-schema-change
+          sudo apt-get install libdbi-perl libdbd-mysql-perl
+      - name: Install gh-ost
+        run: |
+          sudo wget -O gh-ost.tar.gz https://github.com/github/gh-ost/releases/download/v1.1.0/gh-ost-binary-linux-20200828140552.tar.gz
+          sudo tar -zxvf gh-ost.tar.gz -C /usr/local/bin/
+          sudo chmod +x /usr/local/bin/gh-ost
+      - name: "Build & Test"
+        run: |
+          rm -f go.sum
+          sudo chmod +x cmd/explaintest/run-tests.sh
+          make checklist parserlib gotest
+```
+</code></pre></details>
+----
+
+**https://github.com/lark-parser/lark/blob/master/.github/workflows/tests.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10.0-rc - 3.10, pypy2, pypy3]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download submodules
+        run: |
+          git submodule update --init --recursive
+          git submodule sync -q
+          git submodule update --init
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r test-requirements.txt
+      - name: Run tests
+        run: |
+          python -m tests
+```
+</code></pre></details>
+----
+
+
+**https://github.com/lark-parser/lark/blob/master/.github/workflows/codecov.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Compute coverage and push to Codecov
+on: [push]
+jobs:
+  run:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: '3.7'
+    steps:
+    - uses: actions/checkout@master
+    - name: Download submodules
+      run: |
+        git submodule update --init --recursive
+        git submodule sync -q
+        git submodule update --init
+    - name: Setup Python
+      uses: actions/setup-python@master
+      with:
+        python-version: 3.7
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r test-requirements.txt
+    - name: Generate coverage report
+      run: |
+        pip install pytest
+        pip install pytest-cov
+        pytest --cov=./ --cov-report=xml
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        flags: unittests
+        env_vars: OS,PYTHON
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        path_to_write_report: ./coverage/codecov_report.txt
+        verbose: true
+```
+</code></pre></details>
+----
+
 **https://github.com/alibaba/sealer/blob/main/.github/workflows/release.yml**
 <details><summary>展开</summary><pre><code>
 
