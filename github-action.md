@@ -9,12 +9,774 @@
 
 ----
 
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
 
 ****
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
 
+```
+</code></pre></details>
+
+----
+
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
+
+
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
+
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
+
+**https://github.com/ctripcorp/apollo/blob/master/.github/workflows/release.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+#
+# Copyright 2021 Apollo Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: publish sdks
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'Maven Repository(snapshots or releases)'
+        required: true
+        default: 'snapshots'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Maven Central Repository
+      uses: actions/setup-java@v1
+      with:
+        java-version: 7
+        server-id: ${{ github.event.inputs.repository }}
+        server-username: MAVEN_USERNAME
+        server-password: MAVEN_CENTRAL_TOKEN
+        gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+        gpg-passphrase: MAVEN_GPG_PASSPHRASE
+    - name: Publish to Apache Maven Central
+      run: mvn clean deploy -pl apollo-client,apollo-mockserver,apollo-openapi -am -DskipTests=true "-Dreleases.repo=https://oss.sonatype.org/service/local/staging/deploy/maven2" "-Dsnapshots.repo=https://oss.sonatype.org/content/repositories/snapshots"
+      env:
+        MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+        MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+        MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+```
+</code></pre></details>
+
+----
+
+**https://github.com/ctripcorp/apollo/blob/master/.github/workflows/cla.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+#
+# Copyright 2021 Apollo Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+name: "CLA Assistant"
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened,closed,synchronize]
+
+jobs:
+  CLAssistant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "CLA Assistant"
+        if: (github.event.comment.body == 'recheck' || startsWith(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target'
+        # Beta Release
+        uses: cla-assistant/github-action@v2.1.2-beta
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # the below token should have repo scope and must be manually added by you in the repository's secret
+          PERSONAL_ACCESS_TOKEN : ${{ secrets.PERSONAL_ACCESS_TOKEN_FOR_CLA_ASSISTANT }}
+        with:
+          path-to-signatures: 'signatures/version1/cla.json'
+          path-to-document: 'https://github.com/ctripcorp/apollo-community/blob/master/CLA.md' # e.g. a CLA or a DCO document
+          # branch should not be protected
+          branch: 'master'
+          allowlist: dependabot,bot*
+          remote-repository-name: apollo-community
+
+         #below are the optional inputs - If the optional inputs are not given, then default values will be taken
+          #remote-organization-name: enter the remote organization name where the signatures should be stored (Default is storing the signatures in the same repository)
+          #remote-repository-name:  enter the  remote repository name where the signatures should be stored (Default is storing the signatures in the same repository)
+          #create-file-commit-message: 'For example: Creating file for storing CLA Signatures'
+          #signed-commit-message: 'For example: $contributorName has signed the CLA in #$pullRequestNo'
+          #custom-notsigned-prcomment: 'pull request comment with Introductory message to ask new contributors to sign'
+          #custom-pr-sign-comment: 'The signature to be committed in order to sign the CLA'
+          #custom-allsigned-prcomment: 'pull request comment when all contributors has signed, defaults to **CLA Assistant Lite bot** All Contributors have signed the CLA.'
+          #lock-pullrequest-aftermerge: false - if you don't want this bot to automatically lock the pull request after merging (default - true)
+          #use-dco-flag: true - If you are using DCO instead of CLA
+```
+</code></pre></details>
+
+----
+
+**https://github.com/ctripcorp/apollo/blob/master/.github/workflows/build.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+#
+# Copyright 2021 Apollo Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        jdk: [7, 8, 11]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up JDK
+      uses: actions/setup-java@v1
+      with:
+        java-version: ${{ matrix.jdk }}
+    - name: Cache Maven packages
+      uses: actions/cache@v1
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    - name: Build SDK with JDK 7
+      if: matrix.jdk == '7'
+      run: mvn clean compile -pl apollo-client,apollo-mockserver,apollo-openapi -am -Dmaven.gitcommitid.skip=true
+    - name: JDK 8
+      if: matrix.jdk == '8'
+      run: mvn -B clean package -P travis jacoco:report -Dmaven.gitcommitid.skip=true
+    - name: JDK 11 
+      if: matrix.jdk == '11'
+      run: mvn clean compile -Dmaven.gitcommitid.skip=true
+    - name: Upload coverage to Codecov
+      if: matrix.jdk == '8'
+      uses: codecov/codecov-action@v1
+      with:
+        file: ${{ github.workspace }}/apollo-*/target/site/jacoco/jacoco.xml
+```
+</code></pre></details>
+
+----
+
+**https://github.com/88250/solo/blob/master/.github/workflows/dockerimage.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Docker Image CI
+on: 
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Build the Docker image
+      run: |
+        docker login --username=${{ secrets.DOCKER_HUB_USER }} --password=${{ secrets.DOCKER_HUB_PWD }}
+        docker build --build-arg git_commit=$(git rev-parse --short HEAD) -t b3log/solo:latest .
+        docker push b3log/solo
+```
+</code></pre></details>
+
+----
+
+**https://github.com/git/git/blob/master/.github/workflows/main.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: CI/PR
+
+on: [push, pull_request]
+
+env:
+  DEVELOPER: 1
+
+jobs:
+  ci-config:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check-ref.outputs.enabled }}${{ steps.skip-if-redundant.outputs.enabled }}
+    steps:
+      - name: try to clone ci-config branch
+        run: |
+          git -c protocol.version=2 clone \
+            --no-tags \
+            --single-branch \
+            -b ci-config \
+            --depth 1 \
+            --no-checkout \
+            --filter=blob:none \
+            https://github.com/${{ github.repository }} \
+            config-repo &&
+          cd config-repo &&
+          git checkout HEAD -- ci/config || : ignore
+      - id: check-ref
+        name: check whether CI is enabled for ref
+        run: |
+          enabled=yes
+          if test -x config-repo/ci/config/allow-ref &&
+             ! config-repo/ci/config/allow-ref '${{ github.ref }}'
+          then
+            enabled=no
+          fi
+          echo "::set-output name=enabled::$enabled"
+      - name: skip if the commit or tree was already tested
+        id: skip-if-redundant
+        uses: actions/github-script@v3
+        if: steps.check-ref.outputs.enabled == 'yes'
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            try {
+              // Figure out workflow ID, commit and tree
+              const { data: run } = await github.actions.getWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+              });
+              const workflow_id = run.workflow_id;
+              const head_sha = run.head_sha;
+              const tree_id = run.head_commit.tree_id;
+              // See whether there is a successful run for that commit or tree
+              const { data: runs } = await github.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 500,
+                status: 'success',
+                workflow_id,
+              });
+              for (const run of runs.workflow_runs) {
+                if (head_sha === run.head_sha) {
+                  core.warning(`Successful run for the commit ${head_sha}: ${run.html_url}`);
+                  core.setOutput('enabled', ' but skip');
+                  break;
+                }
+                if (run.head_commit && tree_id === run.head_commit.tree_id) {
+                  core.warning(`Successful run for the tree ${tree_id}: ${run.html_url}`);
+                  core.setOutput('enabled', ' but skip');
+                  break;
+                }
+              }
+            } catch (e) {
+              core.warning(e);
+            }
+  windows-build:
+    needs: ci-config
+    if: needs.ci-config.outputs.enabled == 'yes'
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: git-for-windows/setup-git-for-windows-sdk@v1
+    - name: build
+      shell: bash
+      env:
+        HOME: ${{runner.workspace}}
+        NO_PERL: 1
+      run: ci/make-test-artifacts.sh artifacts
+    - name: zip up tracked files
+      run: git archive -o artifacts/tracked.tar.gz HEAD
+    - name: upload tracked files and build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: windows-artifacts
+        path: artifacts
+  windows-test:
+    runs-on: windows-latest
+    needs: [windows-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        nr: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+    - name: download tracked files and build artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: windows-artifacts
+        path: ${{github.workspace}}
+    - name: extract tracked files and build artifacts
+      shell: bash
+      run: tar xf artifacts.tar.gz && tar xf tracked.tar.gz
+    - uses: git-for-windows/setup-git-for-windows-sdk@v1
+    - name: test
+      shell: bash
+      run: ci/run-test-slice.sh ${{matrix.nr}} 10
+    - name: ci/print-test-failures.sh
+      if: failure()
+      shell: bash
+      run: ci/print-test-failures.sh
+    - name: Upload failed tests' directories
+      if: failure() && env.FAILED_TEST_ARTIFACTS != ''
+      uses: actions/upload-artifact@v2
+      with:
+        name: failed-tests-windows
+        path: ${{env.FAILED_TEST_ARTIFACTS}}
+  vs-build:
+    needs: ci-config
+    if: needs.ci-config.outputs.enabled == 'yes'
+    env:
+      NO_PERL: 1
+      GIT_CONFIG_PARAMETERS: "'user.name=CI' 'user.email=ci@git'"
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: git-for-windows/setup-git-for-windows-sdk@v1
+    - name: initialize vcpkg
+      uses: actions/checkout@v2
+      with:
+        repository: 'microsoft/vcpkg'
+        path: 'compat/vcbuild/vcpkg'
+    - name: download vcpkg artifacts
+      shell: powershell
+      run: |
+        $urlbase = "https://dev.azure.com/git/git/_apis/build/builds"
+        $id = ((Invoke-WebRequest -UseBasicParsing "${urlbase}?definitions=9&statusFilter=completed&resultFilter=succeeded&`$top=1").content | ConvertFrom-JSON).value[0].id
+        $downloadUrl = ((Invoke-WebRequest -UseBasicParsing "${urlbase}/$id/artifacts").content | ConvertFrom-JSON).value[0].resource.downloadUrl
+        (New-Object Net.WebClient).DownloadFile($downloadUrl, "compat.zip")
+        Expand-Archive compat.zip -DestinationPath . -Force
+        Remove-Item compat.zip
+    - name: add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1
+    - name: copy dlls to root
+      shell: cmd
+      run: compat\vcbuild\vcpkg_copy_dlls.bat release
+    - name: generate Visual Studio solution
+      shell: bash
+      run: |
+        cmake `pwd`/contrib/buildsystems/ -DCMAKE_PREFIX_PATH=`pwd`/compat/vcbuild/vcpkg/installed/x64-windows \
+        -DNO_GETTEXT=YesPlease -DPERL_TESTS=OFF -DPYTHON_TESTS=OFF -DCURL_NO_CURL_CMAKE=ON
+    - name: MSBuild
+      run: msbuild git.sln -property:Configuration=Release -property:Platform=x64 -maxCpuCount:4 -property:PlatformToolset=v142
+    - name: bundle artifact tar
+      shell: bash
+      env:
+        MSVC: 1
+        VCPKG_ROOT: ${{github.workspace}}\compat\vcbuild\vcpkg
+      run: |
+        mkdir -p artifacts &&
+        eval "$(make -n artifacts-tar INCLUDE_DLLS_IN_ARTIFACTS=YesPlease ARTIFACTS_DIRECTORY=artifacts NO_GETTEXT=YesPlease 2>&1 | grep ^tar)"
+    - name: zip up tracked files
+      run: git archive -o artifacts/tracked.tar.gz HEAD
+    - name: upload tracked files and build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: vs-artifacts
+        path: artifacts
+  vs-test:
+    runs-on: windows-latest
+    needs: vs-build
+    strategy:
+      fail-fast: false
+      matrix:
+        nr: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+    - uses: git-for-windows/setup-git-for-windows-sdk@v1
+    - name: download tracked files and build artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: vs-artifacts
+        path: ${{github.workspace}}
+    - name: extract tracked files and build artifacts
+      shell: bash
+      run: tar xf artifacts.tar.gz && tar xf tracked.tar.gz
+    - name: test
+      shell: bash
+      env:
+        NO_SVN_TESTS: 1
+        GIT_TEST_SKIP_REBASE_P: 1
+      run: ci/run-test-slice.sh ${{matrix.nr}} 10
+    - name: ci/print-test-failures.sh
+      if: failure()
+      shell: bash
+      run: ci/print-test-failures.sh
+    - name: Upload failed tests' directories
+      if: failure() && env.FAILED_TEST_ARTIFACTS != ''
+      uses: actions/upload-artifact@v2
+      with:
+        name: failed-tests-windows
+        path: ${{env.FAILED_TEST_ARTIFACTS}}
+  regular:
+    needs: ci-config
+    if: needs.ci-config.outputs.enabled == 'yes'
+    strategy:
+      fail-fast: false
+      matrix:
+        vector:
+          - jobname: linux-clang
+            cc: clang
+            pool: ubuntu-latest
+          - jobname: linux-gcc
+            cc: gcc
+            pool: ubuntu-latest
+          - jobname: osx-clang
+            cc: clang
+            pool: macos-latest
+          - jobname: osx-gcc
+            cc: gcc
+            pool: macos-latest
+          - jobname: linux-gcc-default
+            cc: gcc
+            pool: ubuntu-latest
+    env:
+      CC: ${{matrix.vector.cc}}
+      jobname: ${{matrix.vector.jobname}}
+    runs-on: ${{matrix.vector.pool}}
+    steps:
+    - uses: actions/checkout@v2
+    - run: ci/install-dependencies.sh
+    - run: ci/run-build-and-tests.sh
+    - run: ci/print-test-failures.sh
+      if: failure()
+    - name: Upload failed tests' directories
+      if: failure() && env.FAILED_TEST_ARTIFACTS != ''
+      uses: actions/upload-artifact@v2
+      with:
+        name: failed-tests-${{matrix.vector.jobname}}
+        path: ${{env.FAILED_TEST_ARTIFACTS}}
+  dockerized:
+    needs: ci-config
+    if: needs.ci-config.outputs.enabled == 'yes'
+    strategy:
+      fail-fast: false
+      matrix:
+        vector:
+        - jobname: linux-musl
+          image: alpine
+        - jobname: Linux32
+          image: daald/ubuntu32:xenial
+    env:
+      jobname: ${{matrix.vector.jobname}}
+    runs-on: ubuntu-latest
+    container: ${{matrix.vector.image}}
+    steps:
+    - uses: actions/checkout@v1
+    - run: ci/install-docker-dependencies.sh
+    - run: ci/run-build-and-tests.sh
+    - run: ci/print-test-failures.sh
+      if: failure()
+    - name: Upload failed tests' directories
+      if: failure() && env.FAILED_TEST_ARTIFACTS != ''
+      uses: actions/upload-artifact@v2
+      with:
+        name: failed-tests-${{matrix.vector.jobname}}
+        path: ${{env.FAILED_TEST_ARTIFACTS}}
+  static-analysis:
+    needs: ci-config
+    if: needs.ci-config.outputs.enabled == 'yes'
+    env:
+      jobname: StaticAnalysis
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - run: ci/install-dependencies.sh
+    - run: ci/run-static-analysis.sh
+  sparse:
+    needs: ci-config
+    if: needs.ci-config.outputs.enabled == 'yes'
+    env:
+      jobname: sparse
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Download a current `sparse` package
+      # Ubuntu's `sparse` version is too old for us
+      uses: git-for-windows/get-azure-pipelines-artifact@v0
+      with:
+        repository: git/git
+        definitionId: 10
+        artifact: sparse-20.04
+    - name: Install the current `sparse` package
+      run: sudo dpkg -i sparse-20.04/sparse_*.deb
+    - uses: actions/checkout@v2
+    - name: Install other dependencies
+      run: ci/install-dependencies.sh
+    - run: make sparse
+  documentation:
+    needs: ci-config
+    if: needs.ci-config.outputs.enabled == 'yes'
+    env:
+      jobname: Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: ci/install-dependencies.sh
+    - run: ci/test-documentation.sh
+```
+</code></pre></details>
+
+----
+
+**https://github.com/git/git/blob/master/.github/workflows/check-whitespace.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+name: check-whitespace
+
+# Get the repo with the commits(+1) in the series.
+# Process `git log --check` output to extract just the check errors.
+# Add a comment to the pull request with the check errors.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  check-whitespace:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: git log --check
+      id: check_out
+      run: |
+        log=
+        commit=
+        while read dash etc
+        do
+          case "${dash}" in
+          "---")
+            commit="${etc}"
+            ;;
+          "")
+            ;;
+          *)
+            if test -n "${commit}"
+            then
+              log="${log}\n${commit}"
+              echo ""
+              echo "--- ${commit}"
+            fi
+            commit=
+            log="${log}\n${dash} ${etc}"
+            echo "${dash} ${etc}"
+            ;;
+          esac
+        done <<< $(git log --check --pretty=format:"---% h% s" ${{github.event.pull_request.base.sha}}..)
+        if test -n "${log}"
+        then
+          exit 2
+        fi
+```
+</code></pre></details>
+
+----
+
+
+**https://github.com/koalaman/shellcheck/blob/master/.github/workflows/build.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Build ShellCheck
+
+# Run this workflow every time a new commit pushed to your repository
+on: push
+
+jobs:
+  package_source:
+    name: Package Source Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-mark manual ghc # Don't bother installing ghc just to tar up source
+          sudo apt-get install cabal-install
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Package Source
+        run: |
+          mkdir source
+          cabal sdist
+          mv dist-newstyle/sdist/*.tar.gz source/source.tar.gz
+      - name: Deduce tags
+        run: |
+          exec > source/tags
+          echo "latest"
+          if tag=$(git describe --exact-match --tags)
+          then
+            echo "stable"
+            echo "$tag"
+          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: source
+          path: source/
+
+  build_source:
+    name: Build Source Code
+    needs: package_source
+    strategy:
+      matrix:
+        build: [linux.x86_64, linux.aarch64, linux.armv6hf, darwin.x86_64, windows.x86_64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Build source
+        run: |
+          mkdir -p bin
+          mkdir -p bin/${{matrix.build}}
+          ( cd bin && ../build/run_builder ../source/source.tar.gz ../build/${{matrix.build}} )
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bin
+          path: bin/
+
+  package_binary:
+    name: Package Binaries
+    needs: build_source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Work around GitHub permissions bug
+        run: chmod +x bin/*/shellcheck*
+
+      - name: Package binaries
+        run: |
+          export TAGS="$(cat source/tags)"
+          mkdir -p deploy
+          cp -r bin/* deploy
+          cd deploy
+          ../.prepare_deploy
+          rm -rf */ README* LICENSE*
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: deploy
+          path: deploy/
+
+  deploy:
+    name: Deploy binaries
+    needs: package_binary
+    runs-on: ubuntu-latest
+    environment: Deploy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Upload to GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export TAGS="$(cat source/tags)"
+          ./.github_deploy
+      - name: Waiting for GitHub to replicate uploaded releases
+        run: |
+          sleep 300
+      - name: Upload to Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_EMAIL: ${{ secrets.DOCKER_EMAIL }}
+          DOCKER_BASE: ${{ secrets.DOCKER_USERNAME }}/shellcheck
+        run: |
+          export TAGS="$(cat source/tags)"
+          ( source ./.multi_arch_docker && set -eux && multi_arch_docker::main )
 ```
 </code></pre></details>
 
