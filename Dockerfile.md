@@ -19,6 +19,203 @@
 
 ----
 
+**https://github.com/hhyo/Archery/blob/master/src/docker/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM hhyo/archery-base:1.3
+
+WORKDIR /opt/archery
+
+COPY . /opt/archery/
+
+#archery
+RUN cd /opt \
+    && yum -y install nginx \
+    && source /opt/venv4archery/bin/activate \
+    && pip3 install -r /opt/archery/requirements.txt \
+    && cp /opt/archery/src/docker/nginx.conf /etc/nginx/ \
+    && cp /opt/archery/src/docker/supervisord.conf /etc/ \
+    && mv /opt/sqladvisor /opt/archery/src/plugins/ \
+    && mv /opt/soar /opt/archery/src/plugins/ \
+    && mv /opt/tmp_binlog2sql /opt/archery/src/plugins/binlog2sql
+
+#port
+EXPOSE 9123
+
+#start service
+ENTRYPOINT bash /opt/archery/src/docker/startup.sh && bash
+```
+</code></pre></details>
+
+----
+
+**https://github.com/hhyo/Archery/blob/master/src/docker/Dockerfile-base**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM docker.io/centos:7
+
+ENV PYTHON_VERSION 3.8.6
+ENV DOCKERIZE_VERSION v0.6.1
+ENV SOAR_VERSION 0.11.0
+
+ENV TZ=Asia/Shanghai
+ENV LANG en_US.UTF-8
+
+WORKDIR /opt
+
+#locale
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+    && yum -y install kde-l10n-Chinese \
+    && localedef -c -f UTF-8 -i zh_CN zh_CN.utf8
+
+ENV LC_ALL zh_CN.utf8
+
+#python
+RUN yum -y install libffi-devel wget gcc make zlib-devel openssl openssl-devel ncurses-devel openldap-devel gettext \
+    && cd /opt \
+    && wget "https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tar.xz" \
+    && tar -xvJf Python-$PYTHON_VERSION.tar.xz \
+    && cd /opt/Python-$PYTHON_VERSION \
+    && ./configure prefix=/usr/local/python3 \
+    && make && make install \
+    && ln -fs /usr/local/python3/bin/python3 /usr/bin/python3 \
+    && ln -fs /usr/local/python3/bin/pip3 /usr/bin/pip3 \
+    && pip3 install virtualenv \
+    && cd /opt \
+    && ln -fs /usr/local/python3/bin/virtualenv /usr/bin/virtualenv \
+    && virtualenv venv4archery --python=python3 \
+    && rm -rf Python-$PYTHON_VERSION \
+    && rm -rf Python-$PYTHON_VERSION.tar.xz \
+#dockerize
+    && wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+#sqladvisor
+    && yum -y install epel-release \
+    && yum -y install cmake bison gcc-c++ git mysql-devel libaio-devel  glib2 glib2-devel \
+    && yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm \
+    && yum -y install Percona-Server-devel-56 Percona-Server-shared-56  Percona-Server-client-56 \
+    && yum -y install percona-toolkit \
+    && cd /opt \
+    && git clone https://github.com/hhyo/SQLAdvisor.git --depth 3 \
+    && cd /opt/SQLAdvisor/ \
+    && cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=/usr/local/sqlparser ./ \
+    && make && make install \
+    && cd sqladvisor/ \
+    && cmake -DCMAKE_BUILD_TYPE=debug ./ \
+    && make \
+    && mv /opt/SQLAdvisor/sqladvisor/sqladvisor /opt \
+    && rm -rf /opt/SQLAdvisor/
+#soar
+RUN cd /opt \
+    && wget https://github.com/XiaoMi/soar/releases/download/$SOAR_VERSION/soar.linux-amd64 -O soar \
+    && chmod a+x soar \
+#binlog2sql
+    && cd /opt \
+    && git clone https://github.com/danfengcao/binlog2sql.git \
+    && mv binlog2sql/binlog2sql/ tmp_binlog2sql \
+    && rm -rf binlog2sql \
+#msodbc
+    && cd /opt \
+    && curl https://packages.microsoft.com/config/rhel/7/prod.repo > /etc/yum.repos.d/mssql-release.repo \
+    && ACCEPT_EULA=Y yum -y install msodbcsql17 \
+    && yum -y install unixODBC-devel \
+#oracle instantclient
+    && yum -y install http://yum.oracle.com/repo/OracleLinux/OL7/oracle/instantclient/x86_64/getPackage/oracle-instantclient19.3-basiclite-19.3.0.0.0-1.x86_64.rpm \
+#mongo instantclient
+    && wget -c https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-rhel70-3.6.20.tgz \
+    && tar -xvf mongodb-linux-x86_64-rhel70-3.6.20.tgz \
+    && cp mongodb-linux-x86_64-rhel70-3.6.20/bin/mongo /usr/local/bin/mongo \
+    && rm -rf mongodb-linux-x86_64-*
+```
+</code></pre></details>
+
+----
+
+**https://github.com/nirui/sshwifty/blob/master/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+# Build the build base environment
+FROM debian:testing AS base
+RUN set -ex && \
+    cd / && \
+    echo '#!/bin/sh' > /try.sh && echo 'res=0; for i in $(seq 0 36); do $@; res=$?; [ $res -eq 0 ] && exit $res || sleep 10; done; exit $res' >> /try.sh && chmod +x /try.sh && \
+    echo '#!/bin/sh' > /child.sh && echo 'cpid=""; ret=0; i=0; for c in "$@"; do ( (((((eval "$c"; echo $? >&3) | sed "s/^/|-($i) /" >&4) 2>&1 | sed "s/^/|-($i)!/" >&2) 3>&1) | (read xs; exit $xs)) 4>&1) & ppid=$!; cpid="$cpid $ppid"; echo "+ Child $i (PID $ppid): $c ..."; i=$((i+1)); done; for c in $cpid; do wait $c; cret=$?; [ $cret -eq 0 ] && continue; echo "* Child PID $c has failed." >&2; ret=$cret; done; exit $ret' >> /child.sh && chmod +x /child.sh && \
+    export PATH=$PATH:/ && \
+    ([ -z "$HTTP_PROXY" ] || (echo "Acquire::http::Proxy \"$HTTP_PROXY\";" >> /etc/apt/apt.conf)) && \
+    ([ -z "$HTTPS_PROXY" ] || (echo "Acquire::https::Proxy \"$HTTPS_PROXY\";" >> /etc/apt/apt.conf)) && \
+    (echo "Acquire::Retries \"8\";" >> /etc/apt/apt.conf) && \
+    echo '#!/bin/sh' > /install.sh && echo 'apt-get update && apt-get install autoconf automake libtool build-essential ca-certificates curl git npm golang-go libvips libvips-dev -y' >> /install.sh && chmod +x /install.sh && \
+    /try.sh /install.sh && rm /install.sh && \
+    /try.sh update-ca-certificates -f && c_rehash && \
+    ([ -z "$HTTP_PROXY" ] || (git config --global http.proxy "$HTTP_PROXY" && npm config set proxy "$HTTP_PROXY")) && \
+    ([ -z "$HTTPS_PROXY" ] || (git config --global https.proxy "$HTTPS_PROXY" && npm config set https-proxy "$HTTPS_PROXY")) && \
+    export PATH=$PATH:"$(go env GOPATH)/bin" && \
+    ([ -z "$CUSTOM_COMMAND" ] || (echo "Running custom command: $CUSTOM_COMMAND" && $CUSTOM_COMMAND)) && \
+    echo '#!/bin/sh' > /install.sh && echo "npm install -g npm || (npm cache clean -f && false)" >> /install.sh && chmod +x /install.sh && /try.sh /install.sh && rm /install.sh
+
+# Build the base environment for application libraries
+FROM base AS libbase
+COPY . /tmp/.build/sshwifty
+RUN set -ex && \
+    cd / && \
+    export PATH=$PATH:/ && \
+    export CPPFLAGS='-DPNG_ARM_NEON_OPT=0' && \
+    /try.sh apt-get install libpng-dev -y && \
+    ls -l /tmp/.build/sshwifty && \
+    /child.sh \
+        "cd /tmp/.build/sshwifty && echo '#!/bin/sh' > /npm_install.sh && echo \"npm install || (npm cache clean -f && rm ~/.npm/_* -rf && false)\" >> /npm_install.sh && chmod +x /npm_install.sh && /try.sh /npm_install.sh && rm /npm_install.sh" \
+        'cd /tmp/.build/sshwifty && /try.sh go mod download'
+
+# Main building environment
+FROM libbase AS builder
+RUN set -ex && \
+    cd / && \
+    export PATH=$PATH:/ && \
+    ([ -z "$HTTP_PROXY" ] || (git config --global http.proxy "$HTTP_PROXY" && npm config set proxy "$HTTP_PROXY")) && \
+    ([ -z "$HTTPS_PROXY" ] || (git config --global https.proxy "$HTTPS_PROXY" && npm config set https-proxy "$HTTPS_PROXY")) && \
+    (cd /tmp/.build/sshwifty && /try.sh npm run build && mv ./sshwifty /)
+
+# Build the final image for running
+FROM alpine:latest
+ENV SSHWIFTY_HOSTNAME= \
+    SSHWIFTY_SHAREDKEY= \
+    SSHWIFTY_DIALTIMEOUT=10 \
+    SSHWIFTY_SOCKS5= \
+    SSHWIFTY_SOCKS5_USER= \
+    SSHWIFTY_SOCKS5_PASSWORD= \
+    SSHWIFTY_LISTENINTERFACE=0.0.0.0 \
+    SSHWIFTY_LISTENPORT=8182 \
+    SSHWIFTY_INITIALTIMEOUT=0 \
+    SSHWIFTY_READTIMEOUT=0 \
+    SSHWIFTY_WRITETIMEOUT=0 \
+    SSHWIFTY_HEARTBEATTIMEOUT=0 \
+    SSHWIFTY_READDELAY=0 \
+    SSHWIFTY_WRITEELAY=0 \
+    SSHWIFTY_TLSCERTIFICATEFILE= \
+    SSHWIFTY_TLSCERTIFICATEKEYFILE= \
+    SSHWIFTY_DOCKER_TLSCERT= \
+    SSHWIFTY_DOCKER_TLSCERTKEY= \
+    SSHWIFTY_PRESETS= \
+    SSHWIFTY_ONLYALLOWPRESETREMOTES=
+COPY --from=builder /sshwifty /
+COPY . /sshwifty-src
+RUN set -ex && \
+    adduser -D sshwifty && \
+    chmod +x /sshwifty && \
+    echo '#!/bin/sh' > /sshwifty.sh && echo '([ -z "$SSHWIFTY_DOCKER_TLSCERT" ] || echo "$SSHWIFTY_DOCKER_TLSCERT" > /tmp/cert); ([ -z "$SSHWIFTY_DOCKER_TLSCERTKEY" ] || echo "$SSHWIFTY_DOCKER_TLSCERTKEY" > /tmp/certkey); if [ -f "/tmp/cert" ] && [ -f "/tmp/certkey" ]; then SSHWIFTY_TLSCERTIFICATEFILE=/tmp/cert SSHWIFTY_TLSCERTIFICATEKEYFILE=/tmp/certkey /sshwifty; else /sshwifty; fi;' >> /sshwifty.sh && chmod +x /sshwifty.sh
+USER sshwifty
+EXPOSE 8182
+ENTRYPOINT [ "/sshwifty.sh" ]
+CMD []
+```
+</code></pre></details>
+
+----
+
 
 **https://github.com/apache/skywalking/blob/master/docker/agent/Dockerfile.agent**
 <details><summary>展开</summary><pre><code>
