@@ -54,6 +54,8 @@
 
 **https://github.com/pantsel/konga/blob/master/docker-compose.yml**
 <details><summary>展开</summary><pre><code>
+
+``` yaml
 version: "3"
 
 networks:
