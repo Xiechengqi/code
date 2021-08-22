@@ -9,11 +9,204 @@
 
 ----
 
+
 ****
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
 
+```
+</code></pre></details>
+
+----
+
+
+**https://github.com/mgr9525/gokins/blob/master/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM golang:1.16.6-alpine3.14 AS builder
+# ENV GOPROXY=https://goproxy.cn,direct
+# RUN apk add git build-base && git clone https://gitee.com/gokins/gokins.git /build
+RUN apk add git build-base && git clone https://github.com/gokins/gokins.git /build
+WORKDIR /build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/gokins main.go
+
+
+FROM alpine:latest AS final
+
+ENV GOKINS_WORKPATH=/data/gokins
+
+RUN apk --no-cache add openssl ca-certificates curl git wget \
+    && rm -rf /var/cache/apk \
+    && mkdir -p /app /data/gokins
+
+COPY --from=builder /build/bin/gokins /app
+WORKDIR /app
+ENTRYPOINT ["/app/gokins"]
+```
+</code></pre></details>
+
+----
+
+
+**https://github.com/hanchuanchuan/goInception/blob/master/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM golang:1.12-alpine as builder
+# MAINTAINER hanchuanchuan <chuanchuanhan@gmail.com>
+
+ENV TZ=Asia/Shanghai
+ENV LANG="en_US.UTF-8"
+
+RUN apk add --no-cache \
+    ca-certificates wget \
+    make \
+    git \
+    gcc \
+    musl-dev
+
+RUN wget -q -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 \
+&& wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub \
+&& wget -q -O /glibc.apk https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.28-r0/glibc-2.28-r0.apk \
+ && chmod +x /usr/local/bin/dumb-init
+
+COPY bin/goInception /goInception
+# COPY bin/percona-toolkit.tar.gz /tmp/percona-toolkit.tar.gz
+COPY bin/pt-online-schema-change /tmp/pt-online-schema-change
+COPY bin/gh-ost /tmp/gh-ost
+COPY config/config.toml.default /etc/config.toml
+
+# Executable image
+FROM alpine
+
+COPY --from=builder /glibc.apk /glibc.apk
+COPY --from=builder /etc/apk/keys/sgerrand.rsa.pub /etc/apk/keys/sgerrand.rsa.pub
+COPY --from=builder /goInception /goInception
+COPY --from=builder /etc/config.toml /etc/config.toml
+COPY --from=builder /usr/local/bin/dumb-init /usr/local/bin/dumb-init
+
+# COPY --from=builder /tmp/percona-toolkit.tar.gz /tmp/percona-toolkit.tar.gz
+COPY --from=builder /tmp/pt-online-schema-change /usr/local/bin/pt-online-schema-change
+COPY --from=builder /tmp/gh-ost /usr/local/bin/gh-ost
+
+WORKDIR /
+
+EXPOSE 4000
+
+ENV LANG="en_US.UTF-8"
+ENV TZ=Asia/Shanghai
+
+# ENV PERCONA_TOOLKIT_VERSION 3.0.4
+
+# && wget -O /tmp/percona-toolkit.tar.gz https://www.percona.com/downloads/percona-toolkit/${PERCONA_TOOLKIT_VERSION}/source/tarball/percona-toolkit-${PERCONA_TOOLKIT_VERSION}.tar.gz \
+
+#RUN set -x \
+#  && apk add --no-cache perl perl-dbi perl-dbd-mysql perl-io-socket-ssl perl-term-readkey make tzdata \
+#  && tar -xzvf /tmp/percona-toolkit.tar.gz -C /tmp \
+#  && cd /tmp/percona-toolkit-${PERCONA_TOOLKIT_VERSION} \
+#  && perl Makefile.PL \
+#  && make \
+#  && make test \
+#  && make install \
+#  && apk del make \
+#  && rm -rf /var/cache/apk/* /tmp/percona-toolkit*
+
+
+RUN set -x \
+  && apk add --no-cache perl perl-dbi perl-dbd-mysql perl-io-socket-ssl perl-term-readkey tzdata /glibc.apk \
+  && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+  && chmod +x /usr/local/bin/pt-online-schema-change \
+  && chmod +x /usr/local/bin/gh-ost
+
+ENTRYPOINT ["/usr/local/bin/dumb-init", "/goInception","--config=/etc/config.toml"]
+```
+</code></pre></details>
+
+----
+
+
+**https://github.com/pantsel/konga/blob/master/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM node:12.16-alpine
+
+COPY . /app
+
+WORKDIR /app
+
+RUN apk upgrade --update \
+    && apk add bash git ca-certificates \
+    && npm install -g bower \
+    && npm --unsafe-perm --production install \
+    && apk del git \
+    && rm -rf /var/cache/apk/* \
+        /app/.git \
+        /app/screenshots \
+        /app/test \
+    && adduser -H -S -g "Konga service owner" -D -u 1200 -s /sbin/nologin konga \
+    && mkdir /app/kongadata /app/.tmp \
+    && chown -R 1200:1200 /app/views /app/kongadata /app/.tmp
+
+EXPOSE 1337
+
+VOLUME /app/kongadata
+
+ENTRYPOINT ["/app/start.sh"]
+```
+</code></pre></details>
+
+----
+
+
+**https://github.com/flipped-aurora/gin-vue-admin/tree/master/server**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM golang:alpine
+
+WORKDIR /go/src/gin-vue-admin
+COPY . .
+
+RUN go generate && go env && go build -o server .
+
+FROM alpine:latest
+LABEL MAINTAINER="SliverHorn@sliver_horn@qq.com"
+
+WORKDIR /go/src/gin-vue-admin
+
+COPY --from=0 /go/src/gin-vue-admin ./
+
+EXPOSE 8888
+
+ENTRYPOINT ./server -c config.docker.yaml
+```
+</code></pre></details>
+
+----
+
+**https://github.com/flipped-aurora/gin-vue-admin/blob/master/web/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM node:12.16.1
+
+WORKDIR /gva_web/
+COPY . .
+
+RUN npm install
+RUN npm run build
+
+FROM nginx:alpine
+LABEL MAINTAINER="SliverHorn@sliver_horn@qq.com"
+
+COPY .docker-compose/nginx/conf.d/my.conf /etc/nginx/conf.d/my.conf
+COPY --from=0 /gva_web/dist /usr/share/nginx/html
+RUN cat /etc/nginx/nginx.conf
+RUN cat /etc/nginx/conf.d/my.conf
+RUN ls -al /usr/share/nginx/html
 ```
 </code></pre></details>
 
