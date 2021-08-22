@@ -17,6 +17,198 @@
 </code></pre></details>
 ----
 
+**https://github.com/Kong/docker-kong/blob/master/alpine/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM alpine:3.13
+
+LABEL maintainer="Kong <support@konghq.com>"
+
+ARG ASSET=ce
+ENV ASSET $ASSET
+
+ARG EE_PORTS
+
+COPY kong.tar.gz /tmp/kong.tar.gz
+
+ARG KONG_VERSION=2.5.0
+ENV KONG_VERSION $KONG_VERSION
+
+
+ARG KONG_AMD64_SHA="ebe0cf3a3e71d202774ede5083c98e2ae39fae0459d11140f53401a66527e1b7"
+ENV KONG_AMD64_SHA $KONG_AMD64_SHA
+
+ARG KONG_ARM64_SHA="131964ce443f2d08dc98191fcc442867f2dee2f741ccee9cc519bb99c765f3cf"
+ENV KONG_ARM64_SHA $KONG_ARM64_SHA
+
+RUN set -eux; \
+    arch="$(apk --print-arch)"; \
+    case "${arch}" in \
+      x86_64) arch='amd64'; KONG_SHA256=$KONG_AMD64_SHA ;; \
+      aarch64) arch='arm64'; KONG_SHA256=$KONG_ARM64_SHA ;; \
+    esac; \
+    if [ "$ASSET" = "ce" ] ; then \
+      apk add --no-cache --virtual .build-deps curl wget tar ca-certificates \
+      && curl -fL "https://download.konghq.com/gateway-${KONG_VERSION%%.*}.x-alpine/kong-$KONG_VERSION.$arch.apk.tar.gz" -o /tmp/kong.tar.gz \
+      && echo "$KONG_SHA256  /tmp/kong.tar.gz" | sha256sum -c - \
+      && apk del .build-deps; \
+    fi; \
+    mkdir /kong \
+    && tar -C /kong -xzf /tmp/kong.tar.gz \
+    && mv /kong/usr/local/* /usr/local \
+    && mv /kong/etc/* /etc \
+    && rm -rf /kong \
+    && apk add --no-cache libstdc++ libgcc openssl pcre perl tzdata libcap zip bash zlib zlib-dev git ca-certificates \
+    && adduser -S kong \
+    && addgroup -S kong \
+    && mkdir -p "/usr/local/kong" \
+    && chown -R kong:0 /usr/local/kong \
+    && chown kong:0 /usr/local/bin/kong \
+    && chmod -R g=u /usr/local/kong \
+    && rm -rf /tmp/kong.tar.gz \
+    && ln -s /usr/local/openresty/bin/resty /usr/local/bin/resty \
+    && ln -s /usr/local/openresty/luajit/bin/luajit /usr/local/bin/luajit \
+    && ln -s /usr/local/openresty/luajit/bin/luajit /usr/local/bin/lua \
+    && ln -s /usr/local/openresty/nginx/sbin/nginx /usr/local/bin/nginx \
+    && if [ "$ASSET" = "ce" ] ; then \
+      kong version; \
+    fi
+
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+USER kong
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+EXPOSE 8000 8443 8001 8444 $EE_PORTS
+
+STOPSIGNAL SIGQUIT
+
+HEALTHCHECK --interval=10s --timeout=10s --retries=10 CMD kong health
+
+CMD ["kong", "docker-start"]
+```
+</code></pre></details>
+----
+
+**https://github.com/Kong/docker-kong/blob/master/centos/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM centos:7
+LABEL maintainer="Kong <support@konghq.com>"
+
+ARG ASSET=ce
+ENV ASSET $ASSET
+
+ARG EE_PORTS
+
+COPY kong.rpm /tmp/kong.rpm
+
+ARG KONG_VERSION=2.5.0
+ENV KONG_VERSION $KONG_VERSION
+
+ARG KONG_SHA256="87b789aed871991b92d264b02ceca3c66246c825c28dd71e73faac7293e43fa2"
+
+RUN set -ex; \
+    if [ "$ASSET" = "ce" ] ; then \
+      curl -fL https://download.konghq.com/gateway-${KONG_VERSION%%.*}.x-centos-7/Packages/k/kong-$KONG_VERSION.el7.amd64.rpm -o /tmp/kong.rpm \
+      && echo "$KONG_SHA256  /tmp/kong.rpm" | sha256sum -c -; \
+    fi; \
+    yum install -y -q unzip shadow-utils git \
+    && yum clean all -q \
+    && rm -fr /var/cache/yum/* /tmp/yum_save*.yumtx /root/.pki \
+    # Please update the centos install docs if the below line is changed so that
+    # end users can properly install Kong along with its required dependencies
+    # and that our CI does not diverge from our docs.
+    && yum install -y /tmp/kong.rpm \
+    && yum clean all \
+    && rm /tmp/kong.rpm \
+    && chown kong:0 /usr/local/bin/kong \
+    && chown -R kong:0 /usr/local/kong \
+    && ln -s /usr/local/openresty/bin/resty /usr/local/bin/resty \
+    && ln -s /usr/local/openresty/luajit/bin/luajit /usr/local/bin/luajit \
+    && ln -s /usr/local/openresty/luajit/bin/luajit /usr/local/bin/lua \
+    && ln -s /usr/local/openresty/nginx/sbin/nginx /usr/local/bin/nginx \
+    && if [ "$ASSET" = "ce" ] ; then \
+      kong version ; \
+    fi
+
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+USER kong
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+EXPOSE 8000 8443 8001 8444 $EE_PORTS
+
+STOPSIGNAL SIGQUIT
+
+HEALTHCHECK --interval=10s --timeout=10s --retries=10 CMD kong health
+
+CMD ["kong", "docker-start"]
+```
+</code></pre></details>
+----
+
+**https://github.com/Kong/docker-kong/blob/master/ubuntu/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM ubuntu:xenial
+
+ARG ASSET=ce
+ENV ASSET $ASSET
+
+ARG EE_PORTS
+
+COPY kong.deb /tmp/kong.deb
+
+ARG KONG_VERSION=2.5.0
+ENV KONG_VERSION $KONG_VERSION
+
+RUN set -ex \
+    && apt-get update \
+    && if [ "$ASSET" = "ce" ] ; then \
+      apt-get install -y curl \
+      && curl -fL https://download.konghq.com/gateway-${KONG_VERSION%%.*}.x-ubuntu-$(cat /etc/os-release | grep UBUNTU_CODENAME | cut -d = -f 2)/pool/all/k/kong/kong_${KONG_VERSION}_$(dpkg --print-architecture).deb -o /tmp/kong.deb \
+      && apt-get purge -y curl; \
+    fi; \
+    apt-get install -y --no-install-recommends unzip git \
+    # Please update the ubuntu install docs if the below line is changed so that
+    # end users can properly install Kong along with its required dependencies
+    # and that our CI does not diverge from our docs.
+    && apt install --yes /tmp/kong.deb \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/kong.deb \
+    && chown kong:0 /usr/local/bin/kong \
+    && chown -R kong:0 /usr/local/kong \
+    && ln -s /usr/local/openresty/bin/resty /usr/local/bin/resty \
+    && ln -s /usr/local/openresty/luajit/bin/luajit /usr/local/bin/luajit \
+    && ln -s /usr/local/openresty/luajit/bin/luajit /usr/local/bin/lua \
+    && ln -s /usr/local/openresty/nginx/sbin/nginx /usr/local/bin/nginx \
+    && if [ "$ASSET" = "ce" ] ; then \
+      kong version ; \
+    fi
+
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+USER kong
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+EXPOSE 8000 8443 8001 8444 $EE_PORTS
+
+STOPSIGNAL SIGQUIT
+
+HEALTHCHECK --interval=10s --timeout=10s --retries=10 CMD kong health
+
+CMD ["kong", "docker-start"]
+```
+</code></pre></details>
+----
+
 **https://github.com/tuna/freedns-go/blob/master/Dockerfile**
 
 <details><summary>展开</summary><pre><code>
