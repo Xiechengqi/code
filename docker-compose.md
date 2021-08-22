@@ -28,21 +28,149 @@
 
 ----
 
-****
+**https://github.com/apache/skywalking/blob/master/docker/docker-compose.yml**
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+version: '3.5'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_TAG}
+    container_name: elasticsearch
+    restart: always
+    ports:
+      - 9200:9200
+    environment:
+      discovery.type: single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+  oap:
+    image: skywalking/oap:${TAG}
+    container_name: oap
+    depends_on:
+      - elasticsearch
+    links:
+      - elasticsearch
+    restart: always
+    ports:
+      - 11800:11800
+      - 12800:12800
+    environment:
+      SW_STORAGE: elasticsearch
+      SW_STORAGE_ES_CLUSTER_NODES: elasticsearch:9200
+      SW_HEALTH_CHECKER: default
+      SW_TELEMETRY: prometheus
+    healthcheck:
+      test: ["CMD", "./bin/swctl", "ch"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  ui:
+    image: skywalking/ui:${TAG}
+    container_name: ui
+    depends_on:
+      - oap
+    links:
+      - oap
+    restart: always
+    ports:
+      - 8080:8080
+    environment:
+      SW_OAP_ADDRESS: http://oap:12800
 ```
 </code></pre></details>
 
 ----
 
-****
+**https://github.com/gamegos/cesi/blob/master/docker-compose.yml**
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
+version: "3"
+services:
+  cesi-backend:
+    container_name: cesi-backend
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile.backend
+    volumes:
+      - "./:/app:ro"
+      - "./defaults/cesi.conf.toml:/etc/cesi.conf.toml:ro"
+    ports:
+      - ${CESI_BACKEND_PORT}:5000
+    depends_on:
+      - products.example.com
+      - analysis.example.com
+      - monitoring.example.com
 
+  cesi-frontend:
+    container_name: cesi-frontend
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile.frontend
+    volumes:
+      - "./cesi/ui/:/app:ro"
+    ports:
+      - "${CESI_UI_PORT}:3000"
+    stdin_open: true
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - cesi-backend
+
+  products.example.com:
+    image: ef9n/supervisord:${SUPERVISOR_TAG}
+    restart: on-failure
+    volumes:
+      - "./.docker/supervisor/confs/conf.d:/etc/supervisor/conf.d"
+      - "./.docker/supervisor/products_supervisord.conf:/etc/supervisor/supervisord.conf"
+      - "./.docker/supervisor/bin/:/opt/cesi-dev/bin"
+      - "/tmp/cesi-dev/logs/products/:/opt/cesi-dev/logs"
+    ports:
+      - "9001:9001"
+
+  analysis.example.com:
+    image: ef9n/supervisord:${SUPERVISOR_TAG}
+    restart: on-failure
+    volumes:
+      - "./.docker/supervisor/confs/conf.d:/etc/supervisor/conf.d"
+      - "./.docker/supervisor/analysis_supervisord.conf:/etc/supervisor/supervisord.conf"
+      - "./.docker/supervisor/bin/:/opt/cesi-dev/bin"
+      - "/tmp/cesi-dev/logs/analysis/:/opt/cesi-dev/logs"
+    ports:
+      - "9002:9001"
+
+  monitoring.example.com:
+    image: ef9n/supervisord:${SUPERVISOR_TAG}
+    restart: on-failure
+    volumes:
+      - "./.docker/supervisor/confs/conf.d:/etc/supervisor/conf.d"
+      - "./.docker/supervisor/monitoring_supervisord.conf:/etc/supervisor/supervisord.conf"
+      - "./.docker/supervisor/bin/:/opt/cesi-dev/bin"
+      - "/tmp/cesi-dev/logs/monitoring/:/opt/cesi-dev/logs"
+    ports:
+      - "9003:9001"
 ```
 </code></pre></details>
 
