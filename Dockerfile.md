@@ -9,12 +9,209 @@
 
 ----
 
-
 ****
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
 
+```
+</code></pre></details>
+
+----
+
+
+**https://github.com/apache/skywalking/blob/master/docker/agent/Dockerfile.agent**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+ARG BASE_IMAGE='adoptopenjdk/openjdk8:alpine'
+
+FROM alpine as build
+
+ENV DIST_NAME=apache-skywalking-apm-bin
+
+ADD "$DIST_NAME.tar.gz" /
+
+RUN mv /$DIST_NAME /skywalking
+
+FROM alpine AS cli
+
+WORKDIR /skywalking/bin
+
+ARG CLI_VERSION=0.6.0
+
+ADD https://archive.apache.org/dist/skywalking/cli/${CLI_VERSION}/skywalking-cli-${CLI_VERSION}-bin.tgz /
+RUN tar -zxf /skywalking-cli-${CLI_VERSION}-bin.tgz -C / ; \
+    mv /skywalking-cli-${CLI_VERSION}-bin/bin/swctl-${CLI_VERSION}-linux-amd64 /skywalking/bin/swctl
+
+FROM $BASE_IMAGE
+
+LABEL maintainer="kezhenxu94@apache.org"
+
+ENV JAVA_TOOL_OPTIONS=-javaagent:/skywalking/agent/skywalking-agent.jar
+
+WORKDIR /skywalking
+
+COPY --from=build /skywalking/agent /skywalking/agent
+COPY --from=cli /skywalking/bin/swctl /skywalking/bin
+```
+</code></pre></details>
+
+----
+
+**https://github.com/apache/skywalking/blob/master/docker/oap/Dockerfile.oap**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+ARG BASE_IMAGE='adoptopenjdk/openjdk11:alpine'
+
+FROM golang:1.14 AS cli
+
+ARG COMMIT_HASH=9f267876493943716434fdaa30047a14c0b5b2d9
+ARG CLI_CODE=${COMMIT_HASH}.tar.gz
+ARG CLI_CODE_URL=https://github.com/apache/skywalking-cli/archive/${CLI_CODE}
+
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
+
+WORKDIR /cli
+
+ADD ${CLI_CODE_URL} .
+RUN tar -xf ${CLI_CODE} --strip 1
+RUN rm ${CLI_CODE}
+
+RUN mkdir -p /skywalking/bin/
+RUN make linux && mv bin/swctl-latest-linux-amd64 /skywalking/bin/swctl
+
+FROM $BASE_IMAGE
+
+ENV JAVA_OPTS=" -Xms256M " \
+    SW_CLUSTER="standalone" \
+    SW_STORAGE="h2"
+
+ARG DIST_NAME
+
+COPY "$DIST_NAME.tar.gz" /
+
+RUN set -ex; \
+    tar -xzf "$DIST_NAME.tar.gz"; \
+    rm -rf "$DIST_NAME.tar.gz"; \
+    rm -rf "$DIST_NAME/config/log4j2.xml"; \
+    rm -rf "$DIST_NAME/bin"; rm -rf "$DIST_NAME/webapp"; rm -rf "$DIST_NAME/agent"; \
+    mkdir "$DIST_NAME/bin"; \
+    mv "$DIST_NAME" skywalking;
+
+WORKDIR skywalking
+
+COPY --from=cli /skywalking/bin/swctl ./bin
+
+COPY log4j2.xml config/
+COPY docker-entrypoint.sh .
+RUN mkdir ext-config; \
+    mkdir ext-libs;
+
+EXPOSE 12800 11800 1234
+
+ENTRYPOINT ["sh", "docker-entrypoint.sh"]
+```
+</code></pre></details>
+
+----
+
+**https://github.com/apache/skywalking/blob/master/docker/ui/Dockerfile.ui**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM adoptopenjdk/openjdk11:alpine
+
+ENV DIST_NAME=apache-skywalking-apm-bin \
+    JAVA_OPTS=" -Xms256M " \
+    SW_OAP_ADDRESS="http://127.0.0.1:12800"
+
+COPY "$DIST_NAME.tar.gz" /
+
+RUN set -ex; \
+    apk add bash; \
+    tar -xzf "$DIST_NAME.tar.gz"; \
+    rm -rf "$DIST_NAME.tar.gz"; \
+    rm -rf "$DIST_NAME/config"; \
+    rm -rf "$DIST_NAME/bin"; rm -rf "$DIST_NAME/oap-libs"; rm -rf "$DIST_NAME/agent"; \
+    mv "$DIST_NAME" skywalking;
+
+WORKDIR skywalking
+
+COPY docker-entrypoint.sh .
+COPY logback.xml webapp/
+
+EXPOSE 8080
+
+ENTRYPOINT ["bash", "docker-entrypoint.sh"]
+```
+</code></pre></details>
+
+----
+
+**https://github.com/88250/solo/blob/master/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM maven:3-jdk-8-alpine as MVN_BUILD
+
+WORKDIR /opt/solo/
+ADD . /tmp
+RUN cd /tmp && mvn package -DskipTests -Pci -q && mv target/solo/* /opt/solo/ \
+&& cp -f /tmp/src/main/resources/docker/* /opt/solo/
+
+FROM openjdk:8-alpine
+LABEL maintainer="Liang Ding<845765@qq.com>"
+
+WORKDIR /opt/solo/
+COPY --from=MVN_BUILD /opt/solo/ /opt/solo/
+RUN apk add --no-cache ca-certificates tzdata
+
+ENV TZ=Asia/Shanghai
+ARG git_commit=0
+ENV git_commit=$git_commit
+
+EXPOSE 8080
+
+ENTRYPOINT [ "java", "-cp", "lib/*:.", "org.b3log.solo.Server" ]
+```
+</code></pre></details>
+
+----
+
+
+**https://github.com/koalaman/shellcheck/blob/master/Dockerfile.multi-arch**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+# Alpine image
+FROM alpine:latest AS alpine
+LABEL maintainer="Vidar Holen <vidar@vidarholen.net>"
+ARG tag
+
+# Put the right binary for each architecture into place for the
+# multi-architecture docker image.
+RUN set -x; \
+  arch="$(uname -m)"; \
+  echo "arch is $arch"; \
+  if [ "${arch}" = 'armv7l' ]; then \
+    arch='armv6hf'; \
+  fi; \
+  url_base='https://github.com/koalaman/shellcheck/releases/download/'; \
+  tar_file="${tag}/shellcheck-${tag}.linux.${arch}.tar.xz"; \
+  wget "${url_base}${tar_file}" -O - | tar xJf -; \
+  mv "shellcheck-${tag}/shellcheck" /bin/; \
+  rm -rf "shellcheck-${tag}"; \
+  ls -laF /bin/shellcheck
+
+# ShellCheck image
+FROM scratch
+LABEL maintainer="Vidar Holen <vidar@vidarholen.net>"
+WORKDIR /mnt
+COPY --from=alpine /bin/shellcheck /bin/
+ENTRYPOINT ["/bin/shellcheck"]
 ```
 </code></pre></details>
 
