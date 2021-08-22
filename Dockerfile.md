@@ -19,6 +19,63 @@
 
 ----
 
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
+
+**https://github.com/fatedier/frp/blob/dev/dockerfiles/Dockerfile-for-frps**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+FROM alpine:3.12.0 AS temp
+
+COPY bin/frps /tmp
+
+RUN chmod -R 777 /tmp/frps
+
+
+FROM alpine:3.12.0
+
+WORKDIR /app
+
+COPY --from=temp /tmp/frps /usr/bin
+
+ENTRYPOINT ["/usr/bin/frps"]
+```
+</code></pre></details>
+
+----
+
+**https://github.com/fatedier/frp/blob/dev/dockerfiles/Dockerfile-for-frpc**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+  
+FROM alpine:3.12.0 AS temp
+
+COPY bin/frpc /tmp
+
+RUN chmod -R 777 /tmp/frpc
+
+
+FROM alpine:3.12.0
+
+WORKDIR /app
+
+COPY --from=temp /tmp/frpc /usr/bin
+
+ENTRYPOINT ["/usr/bin/frpc"]
+```
+</code></pre></details>
+
+----
+
 **https://github.com/Kong/docker-kong/blob/master/alpine/Dockerfile**
 <details><summary>展开</summary><pre><code>
 
