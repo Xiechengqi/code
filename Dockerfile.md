@@ -6,6 +6,7 @@
 
 ```
 </code></pre></details>
+
 ----
 
 ****
@@ -15,6 +16,7 @@
 
 ```
 </code></pre></details>
+
 ----
 
 **https://github.com/Kong/docker-kong/blob/master/alpine/Dockerfile**
@@ -90,6 +92,7 @@ HEALTHCHECK --interval=10s --timeout=10s --retries=10 CMD kong health
 CMD ["kong", "docker-start"]
 ```
 </code></pre></details>
+
 ----
 
 **https://github.com/Kong/docker-kong/blob/master/centos/Dockerfile**
@@ -150,6 +153,7 @@ HEALTHCHECK --interval=10s --timeout=10s --retries=10 CMD kong health
 CMD ["kong", "docker-start"]
 ```
 </code></pre></details>
+
 ----
 
 **https://github.com/Kong/docker-kong/blob/master/ubuntu/Dockerfile**
@@ -207,6 +211,7 @@ HEALTHCHECK --interval=10s --timeout=10s --retries=10 CMD kong health
 CMD ["kong", "docker-start"]
 ```
 </code></pre></details>
+
 ----
 
 **https://github.com/tuna/freedns-go/blob/master/Dockerfile**
