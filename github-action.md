@@ -8,6 +8,476 @@
 </code></pre></details>
 ----
 
+
+**https://github.com/alibaba/sealer/blob/main/.github/workflows/release.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Release
+
+jobs:
+  note:
+    name: Pre note
+    runs-on: ubuntu-18.04
+    timeout-minutes: 5
+    outputs:
+      stringver: ${{ steps.contentrel.outputs.stringver }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          path: src/github.com/alibaba/sealer
+      - name: stringver
+        id: contentrel
+        run: |
+          RELEASEVER=${{ github.ref }}
+          echo "::set-output name=stringver::${RELEASEVER#refs/tags/v}"
+        working-directory: src/github.com/alibaba/sealer
+      - name: Save release notes
+        uses: actions/upload-artifact@v2
+        with:
+          name: sealer-release-notes
+          path: src/github.com/alibaba/sealer/release_note.md
+  build:
+    name: Build Release Binaries
+    runs-on: ${{ matrix.os }}
+    needs: [note]
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04]
+
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.14'
+
+      - name: Set env
+        shell: bash
+        env:
+          MOS: ${{ matrix.os }}
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          os=linux
+          echo "GIT_TAG=${releasever}" >> $GITHUB_ENV
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "OS=${os}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      - name: Checkout sealer
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          path: src/github.com/alibaba/sealer
+
+      - name: Make linux
+        shell: bash
+        run: |
+            export MULTI_PLATFORM_BUILD=true
+            make build
+        working-directory: src/github.com/alibaba/sealer
+
+      - name: Save build binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: sealer-binaries
+          path: src/github.com/alibaba/sealer/_output/assets/*.tar.gz*
+
+
+  release:
+    name: Create sealer Release
+    runs-on: ubuntu-18.04
+    timeout-minutes: 10
+    needs: [build, note]
+
+    steps:
+      - name: Download builds and release notes
+        uses: actions/download-artifact@v2
+        with:
+          path: builds
+      - name: Catalog build assets for upload
+        id: catalog
+        run: |
+          _filenum=1
+          for i in "linux-amd64" "linux-arm64"; do
+            for f in `ls builds/sealer-binaries/ | grep ${i}`; do
+              echo "::set-output name=file${_filenum}::${f}"
+              let "_filenum+=1"
+            done
+          done
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.1.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: sealer ${{ needs.note.outputs.stringver }}
+          body_path: ./builds/sealer-release-notes/release_note.md
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+      - name: Upload Linux sealer linux amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file1 }}
+          asset_name: ${{ steps.catalog.outputs.file1 }}
+          asset_content_type: application/gzip
+      - name: Upload Linux sealer linux amd64 sha256 sum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file2 }}
+          asset_name: ${{ steps.catalog.outputs.file2 }}
+          asset_content_type: text/plain
+      - name: Upload Linux seautil linux amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file3 }}
+          asset_name: ${{ steps.catalog.outputs.file3 }}
+          asset_content_type: application/gzip
+      - name: Upload Linux seautil linux amd64 sha256 sum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file4 }}
+          asset_name: ${{ steps.catalog.outputs.file4 }}
+          asset_content_type: text/plain
+      - name: Upload Linux sealer linux arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file5 }}
+          asset_name: ${{ steps.catalog.outputs.file5 }}
+          asset_content_type: application/gzip
+      - name: Upload Linux sealer linux arm64 sha256 sum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file6 }}
+          asset_name: ${{ steps.catalog.outputs.file6 }}
+          asset_content_type: text/plain
+      - name: Upload Linux seautil linux arm64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file7 }}
+          asset_name: ${{ steps.catalog.outputs.file7 }}
+          asset_content_type: application/gzip
+      - name: Upload Linux seautil linux arm64 sha256 sum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./builds/sealer-binaries/${{ steps.catalog.outputs.file8 }}
+          asset_name: ${{ steps.catalog.outputs.file8 }}
+          asset_content_type: text/plain
+```
+</code></pre></details>
+----
+
+
+**https://github.com/alibaba/sealer/blob/main/.github/workflows/go.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Go
+
+on:
+  push:
+    branches: "*"
+  pull_request:
+    branches: "*"
+    paths-ignore:
+      - 'docs/**'
+      - 'vendor/**'
+      - '*.md'
+      - '*.yml'
+jobs:
+
+  build:
+    name: ubuntu - Go v1.14
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.14'
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          path: src/github.com/alibaba/sealer
+      - name: Check out code lic
+        working-directory: src/github.com/alibaba/sealer
+        run: |
+          wget https://github.com/google/addlicense/releases/download/v1.0.0/addlicense_1.0.0_Linux_x86_64.tar.gz
+          tar -zxvf addlicense_1.0.0_Linux_x86_64.tar.gz -C $(go env GOPATH)/bin
+          chmod a+x $(go env GOPATH)/bin/addlicense
+          rm -rf addlicense_1.0.0_Linux_x86_64.tar.gz
+          make license
+          modifyCode=$(git status  -s | grep M | wc -l)
+          git status  -s
+          if [ $modifyCode -eq 0 ] ; then
+              echo "Lic check ok"
+            else
+              echo "Failed git modify files num is $modifyCode. Lic check error,please exec 'make install-addlicense && make license' in your code "
+              exit -1
+           fi
+      - name: Install go ci lint
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.39.0
+
+      - name: Run Linter
+        run: golangci-lint run -v
+        working-directory: src/github.com/alibaba/sealer
+
+      - name: Make linux
+        shell: bash
+        run: |
+          export MULTI_PLATFORM_BUILD=true
+          make build
+        working-directory: src/github.com/alibaba/sealer
+
+      - name: Save build binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: sealer-binaries
+          path: src/github.com/alibaba/sealer/_output/assets/*.tar.gz*
+```
+</code></pre></details>
+----
+
+
+**https://github.com/alibaba/sealer/blob/main/.github/workflows/e2e-test.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Sealer-Test
+
+on:
+  push:
+    branches: "release*"
+  issue_comment:
+    types:
+      - created
+jobs:
+  build:
+    name: test
+    runs-on: ubuntu-latest
+    if: ${{ (github.event.issue.pull_request && contains(github.event.comment.body, '/test')) || github.event_name == 'push' }}
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Github API Request
+        id: request
+        uses: octokit/request-action@v2.0.2
+        with:
+          route: ${{ github.event.issue.pull_request.url }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get PR informations
+        id: pr_data
+        run: |
+          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+          echo "::set-output name=repo_clone_url::${{ fromJson(steps.request.outputs.data).head.repo.clone_url }}"
+          echo "::set-output name=repo_ssh_url::${{ fromJson(steps.request.outputs.data).head.repo.ssh_url }}"
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{fromJson(steps.request.outputs.data).head.repo.full_name}}
+          ref: ${{fromJson(steps.request.outputs.data).head.ref}}
+          path: src/github.com/alibaba/sealer
+
+      - name: Set up Go 1.13
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+        id: go
+
+      - name: Install sealer and ginkgo
+        shell: bash
+        run: |
+          source hack/build.sh
+          export SEALER_DIR=$THIS_PLATFORM_BIN/sealer/linux_amd64
+          echo "$SEALER_DIR" >> $GITHUB_PATH
+          go get github.com/onsi/ginkgo/ginkgo
+          go get github.com/onsi/gomega/...
+          GOPATH=`go env GOPATH`
+          echo "$GOPATH/bin" >> $GITHUB_PATH
+        working-directory: src/github.com/alibaba/sealer
+
+      - name: Run all e2e test
+        shell: bash
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          IMAGE_NAME: ${{ secrets.IMAGE_NAME}}
+          ACCESSKEYID: ${{ secrets.ACCESSKEYID }}
+          ACCESSKEYSECRET: ${{ secrets.ACCESSKEYSECRET }}
+          RegionID: ${{ secrets.RegionID }}
+        if: ${{ github.event.comment.body == '/test all' || github.event_name == 'push' }}
+        run: |
+          ginkgo -v test
+        working-directory: src/github.com/alibaba/sealer
+
+      - name: Run sealer apply test
+        shell: bash
+        working-directory: src/github.com/alibaba/sealer
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          IMAGE_NAME: ${{ secrets.IMAGE_NAME}}
+          ACCESSKEYID: ${{ secrets.ACCESSKEYID }}
+          ACCESSKEYSECRET: ${{ secrets.ACCESSKEYSECRET }}
+          RegionID: ${{ secrets.RegionID }}
+        if: ${{ github.event.comment.body == '/test apply' }}
+        run: |
+          ginkgo -v --focus="sealer apply" test
+      - name: Run sealer build test
+        shell: bash
+        working-directory: src/github.com/alibaba/sealer
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          IMAGE_NAME: ${{ secrets.IMAGE_NAME}}
+          ACCESSKEYID: ${{ secrets.ACCESSKEYID }}
+          ACCESSKEYSECRET: ${{ secrets.ACCESSKEYSECRET }}
+          RegionID: ${{ secrets.RegionID }}
+        if: ${{ github.event.comment.body == '/test build' }}
+        run: |
+          ginkgo -v --focus="sealer build" test
+      - name: Run sealer run test
+        shell: bash
+        working-directory: src/github.com/alibaba/sealer
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          IMAGE_NAME: ${{ secrets.IMAGE_NAME}}
+          ACCESSKEYID: ${{ secrets.ACCESSKEYID }}
+          ACCESSKEYSECRET: ${{ secrets.ACCESSKEYSECRET }}
+          RegionID: ${{ secrets.RegionID }}
+        if: ${{ github.event.comment.body == '/test run' }}
+        run: |
+          ginkgo -v --focus="sealer run" test
+      - name: Run sealer login test
+        shell: bash
+        working-directory: src/github.com/alibaba/sealer
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+        if: ${{ github.event.comment.body == '/test login' }}
+        run: |
+          ginkgo -v --focus="sealer login" test
+      - name: Run sealer image test
+        shell: bash
+        working-directory: src/github.com/alibaba/sealer
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          IMAGE_NAME: ${{ secrets.IMAGE_NAME}}
+        if: ${{ github.event.comment.body == '/test image' }}
+        run: |
+          ginkgo -v --focus="sealer image" test
+```
+</code></pre></details>
+----
+
+
+**https://github.com/alibaba/sealer/blob/main/.github/workflows/auto-invite.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Invite user to join our group
+on:
+  issue_comment:
+    types:
+      - created
+jobs:
+  issue_comment:
+    name: Invite user to join our group
+    if: ${{ github.event.comment.body == '/invite' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+
+      - name: Invite user to join our group
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            It's my pleasure to invite you to join us :
+            Sealer dingtalk group : 34619594
+            Mail list : sealer@list.alibaba-inc.com
+            Developer please add my dingtalk or wechat : fangnux
+```
+</code></pre></details>
+----
+
+
+**https://github.com/alibaba/sealer/blob/main/.github/workflows/auto-comment.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: Reply dev-quickstart label
+on:
+  issues:
+    types:
+      - labeled
+jobs:
+  add-comment:
+    if: github.event.label.name == 'dev-quickstart'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Reply dev-quickstart label
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            If you want to develop this feature, please reply to this issue first and we will assign the task to you.
+            [contributing guide](https://github.com/alibaba/sealer/blob/main/CONTRIBUTING.md)
+```
+</code></pre></details>
+----
+
 **https://github.com/flipped-aurora/gin-vue-admin/blob/master/.github/workflows/build_test.yml**
 <details><summary>展开</summary><pre><code>
 
