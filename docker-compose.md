@@ -28,6 +28,167 @@
 
 ----
 
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
+
+**https://github.com/hhyo/Archery/blob/master/src/docker-compose/docker-compose.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+version: '3'
+
+services:
+  redis:
+    image: redis:5
+    container_name: redis
+    restart: always
+    command: redis-server --requirepass 123456
+    expose:
+      - "6379"
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    volumes:
+      - "./mysql/my.cnf:/etc/mysql/my.cnf"
+      - "./mysql/datadir:/var/lib/mysql"
+    environment:
+      MYSQL_DATABASE: archery
+      MYSQL_ROOT_PASSWORD: 123456
+
+  inception:
+    image: hhyo/inception
+    container_name: inception
+    restart: always
+    expose:
+      - "6669"
+    volumes:
+      - "./inception/inc.cnf:/etc/inc.cnf"
+
+  goinception:
+    image: hanchuanchuan/goinception
+    container_name: goinception
+    restart: always
+    expose:
+      - "4000"
+    volumes:
+      - "./inception/config.toml:/etc/config.toml"
+
+  archery:
+    image: hhyo/archery:1.8.1
+    container_name: archery
+    restart: always
+    ports:
+      - "9123:9123"
+    volumes:
+      - "./archery/settings.py:/opt/archery/archery/settings.py"
+      - "./archery/soar.yaml:/etc/soar.yaml"
+      - "./archery/docs.md:/opt/archery/docs/docs.md"
+      - "./archery/downloads:/opt/archery/downloads"
+      - "./archery/sql/migrations:/opt/archery/sql/migrations"
+      - "./archery/logs:/opt/archery/logs"
+    entrypoint: "dockerize -wait tcp://mysql:3306 -wait tcp://redis:6379 -timeout 60s /opt/archery/src/docker/startup.sh"
+    environment:
+      NGINX_PORT: 9123
+```
+</code></pre></details>
+
+----
+
+**https://github.com/welliamcao/OpsManage/blob/v3/docker/docker-compose.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+version: "3"
+services:
+  db:
+    image: mysql:5.6  
+    environment:
+      - MYSQL_HOST=localhost
+      - MYSQL_DATABASE=opsmanage
+      - MYSQL_USER=数据库用户名
+      - MYSQL_PASSWORD=数据库用户密码
+      - MYSQL_ROOT_PASSWORD=数据库root密码
+    volumes:
+      - /data/apps/mysql:/var/lib/mysql  
+    restart: always  
+    networks:
+      - default
+  redis:
+     container_name: redis
+     image: redis:3.2.8
+     command: redis-server 
+     ports:
+       - "6379:6379"
+     volumes:
+       - /data/apps/redis:/data/redis
+     networks:
+       - default  
+  rabbitmq:
+     container_name: rabbitmq
+     image: rabbitmq:management
+     ports:
+       - "5672:5672"
+       - "15672:15672"
+     networks:
+       - default  
+
+  ops_web:
+     image: opsmanage-base:latest
+     container_name: ops_web
+     environment:
+       MYSQL_DATABASE: opsmanage
+       MYSQL_USER: "数据库用户名"
+       MYSQL_PASSWORD: "数据库用户密码"
+     ports:
+       - "8000:8000" #vim /mnt/OpsManage/OpsManage/settings.py文件里面的DEBUG设置为DEBUG = True 
+     volumes:
+       - /mnt/OpsManage:/data/apps/opsmanage
+       - /mnt/OpsManage/upload:/data/apps/opsmanage/upload
+       - /mnt/OpsManage/logs:/data/apps/opsmanage/logs
+     command: bash /data/apps/opsmanage/docker/start.sh  
+     links:
+       - db
+       - redis
+       - rabbitmq
+     depends_on:
+       - db
+       - redis
+       - rabbitmq
+     restart: always
+     networks:
+       - default  
+
+#  nginx:
+#     image: opsmanage-nginx
+#     container_name: nginx
+#     ports:
+#       - "80:80"   
+#     volumes:
+#       - /mnt/OpsManage/static:/usr/share/nginx/html/static
+#     depends_on:
+#       - ops_web
+#     links:
+#       - ops_web:ops_web
+#     networks:
+#       - default
+networks:
+  default:
+```
+</code></pre></details>
+
+----
+
 **https://github.com/apache/skywalking/blob/master/docker/docker-compose.yml**
 <details><summary>展开</summary><pre><code>
 
