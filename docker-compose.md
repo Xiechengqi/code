@@ -1,12 +1,7 @@
 ****
 <details><summary>展开</summary><pre><code>
 
-```
-</code></pre></details>
-----
-
-****
-<details><summary>展开</summary><pre><code>
+``` yaml
 
 ```
 </code></pre></details>
@@ -15,12 +10,7 @@
 ****
 <details><summary>展开</summary><pre><code>
 
-```
-</code></pre></details>
-----
-
-****
-<details><summary>展开</summary><pre><code>
+``` yaml
 
 ```
 </code></pre></details>
@@ -29,12 +19,34 @@
 ****
 <details><summary>展开</summary><pre><code>
 
+``` yaml
+
 ```
 </code></pre></details>
 ----
 
 ****
 <details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+----
+
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+----
+
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
 
 ```
 </code></pre></details>
