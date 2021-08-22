@@ -19,42 +19,417 @@
 
 ----
 
-****
+**https://github.com/drone/drone/blob/master/docker/compose/drone-github/docker-compose.yml**
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
-
+version: "3.8"
+services:
+    drone:
+        image: drone/drone:latest
+        ports:
+        - "8080:80"
+        environment:
+        - DRONE_SERVER_HOST=localhost:8080
+        - DRONE_SERVER_PROTO=http
+        - DRONE_SERVER_PROXY_HOST=${DRONE_SERVER_PROXY_HOST}
+        - DRONE_SERVER_PROXY_PROTO=https
+        - DRONE_RPC_SECRET=bea26a2221fd8090ea38720fc445eca6
+        - DRONE_COOKIE_SECRET=e8206356c843d81e05ab6735e7ebf075
+        - DRONE_COOKIE_TIMEOUT=720h
+        - DRONE_GITHUB_CLIENT_ID=${DRONE_GITHUB_CLIENT_ID}
+        - DRONE_GITHUB_CLIENT_SECRET=${DRONE_GITHUB_CLIENT_SECRET}
+        - DRONE_LOGS_DEBUG=true
+        - DRONE_CRON_DISABLED=true
+        volumes:
+        - ./data:/data
+    runner:
+        image: drone/drone-runner-docker:latest
+        environment:
+        - DRONE_RPC_HOST=drone
+        - DRONE_RPC_PROTO=http
+        - DRONE_RPC_SECRET=bea26a2221fd8090ea38720fc445eca6
+        - DRONE_TMATE_ENABLED=true
+        volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
 ```
 </code></pre></details>
 
 ----
 
-****
+**https://github.com/jumpserver/jumpserver/blob/master/.github/workflows/release-drafter.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Create Release And Upload assets
+
+jobs:
+  create-realese:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Get version
+        id: get_version
+        run: |
+          TAG=$(basename ${GITHUB_REF})
+          VERSION=${TAG/v/}
+          echo "::set-output name=TAG::$TAG"
+          echo "::set-output name=VERSION::$VERSION"
+      - name: Create Release
+        id: create_release
+        uses: release-drafter/release-drafter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-name: release-config.yml
+          version: ${{ steps.get_version.outputs.TAG }}
+          tag: ${{ steps.get_version.outputs.TAG }}
+
+  build-and-release:
+    needs: create-realese
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build it and upload
+        uses: jumpserver/action-build-upload-assets@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-realese.outputs.upload_url }}
+```
+</code></pre></details>
+
+----
+
+**https://github.com/jumpserver/jumpserver/blob/master/.github/workflows/jms-generic-action-handler.yml**
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
 
+on: [push, pull_request, release]
+
+name: JumpServer repos generic handler
+
+jobs:
+  generic_handler:
+    name: Run generic handler
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jumpserver/action-generic-handler@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
+```
+</code></pre></details>
+
+----
+
+**https://github.com/ansible/awx/blob/devel/.github/workflows/devel_image.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+---
+name: Push Development Image
+on:
+  push:
+    branches:
+      - devel
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${GITHUB_REF##*/}
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${GITHUB_REF##*/} make docker-compose-build
+      - name: Push image
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/awx_devel:${GITHUB_REF##*/}
 ```
 </code></pre></details>
 
 ----
 
 
-****
+**https://github.com/ansible/awx/blob/devel/.github/workflows/e2e_test.yml**
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
+---
+name: E2E Tests
+on:
+  pull_request_target:
+    types: [labeled]
+jobs:   
+  e2e-test:
+    if: contains(github.event.pull_request.labels.*.name, 'qe:e2e')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      packages: write
+      contents: read
+    strategy:
+      matrix:
+        job: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
 
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install system deps
+        run: sudo apt-get install -y gettext
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ github.base_ref }}
+      - name: Build UI
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ github.base_ref }} make ui-devel
+      - name: Start AWX
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ github.base_ref }} make docker-compose &> make-docker-compose-output.log &
+      - name: Pull awx_cypress_base image
+        run: |
+          docker pull quay.io/awx/awx_cypress_base:latest
+      - name: Checkout test project
+        uses: actions/checkout@v2
+        with:
+          repository: ${{ github.repository_owner }}/tower-qa
+          ssh-key: ${{ secrets.QA_REPO_KEY }}
+          path: tower-qa
+          ref: devel
+
+      - name: Build cypress
+        run: |
+          cd ${{ secrets.E2E_PROJECT }}/ui-tests/awx-pf-tests
+          docker build -t awx-pf-tests .
+      - name: Update default AWX password
+        run: |
+          while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' -k https://localhost:8043/api/v2/ping/)" != "200" ]]
+          do
+          echo "Waiting for AWX..."
+          sleep 5;
+          done
+          echo "AWX is up, updating the password..."
+          docker exec -i tools_awx_1 sh <<-EOSH
+            awx-manage update_password --username=admin --password=password
+          EOSH
+      - name: Run E2E tests
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+        run: |
+          export COMMIT_INFO_BRANCH=$GITHUB_HEAD_REF
+          export COMMIT_INFO_AUTHOR=$GITHUB_ACTOR
+          export COMMIT_INFO_SHA=$GITHUB_SHA
+          export COMMIT_INFO_REMOTE=$GITHUB_REPOSITORY_OWNER
+          cd ${{ secrets.E2E_PROJECT }}/ui-tests/awx-pf-tests
+          AWX_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' tools_awx_1)
+          printenv > .env
+          echo "Executing tests:"
+          docker run \
+          --network '_sources_default' \
+          --ipc=host \
+          --env-file=.env \
+          -e CYPRESS_baseUrl="https://$AWX_IP:8043" \
+          -e CYPRESS_AWX_E2E_USERNAME=admin \
+          -e CYPRESS_AWX_E2E_PASSWORD='password' \
+          -e COMMAND="npm run cypress-gha" \
+          -v /dev/shm:/dev/shm \
+          -v $PWD:/e2e \
+          -w /e2e \
+          awx-pf-tests run --project .
+      - name: Save AWX logs
+        uses: actions/upload-artifact@v2
+        with:
+          name: AWX-logs-${{ matrix.job }}
+          path: make-docker-compose-output.log
 ```
 </code></pre></details>
 
 ----
 
-****
+**https://github.com/ansible/awx/blob/devel/.github/workflows/ci.yml**
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
+---
+name: CI
+env:
+  BRANCH: ${{ github.base_ref || 'devel' }}
+on:
+  pull_request:
+  push:
+    branches: [devel]
+jobs:
+  api-test:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
 
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }}
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ env.BRANCH }} make docker-compose-build
+      - name: Run API Tests
+        run: |
+          docker run -u $(id -u) --rm -v ${{ github.workspace}}:/awx_devel/:Z \
+            --workdir=/awx_devel ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} /start_tests.sh
+  api-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }}
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ env.BRANCH }} make docker-compose-build
+      - name: Run API Linters
+        run: |
+          docker run -u $(id -u) --rm -v ${{ github.workspace}}:/awx_devel/:Z \
+            --workdir=/awx_devel ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} /var/lib/awx/venv/awx/bin/tox -e linters
+  api-swagger:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} || :
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ env.BRANCH }}  make docker-compose-build
+      - name: Generate API Reference
+        run: |
+          docker run -u $(id -u) --rm -v ${{ github.workspace}}:/awx_devel/:Z \
+            --workdir=/awx_devel ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} /start_tests.sh swagger
+  awx-collection:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }}
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ env.BRANCH }}  make docker-compose-build
+      - name: Run Collection Tests
+        run: |
+          docker run -u $(id -u) --rm -v ${{ github.workspace}}:/awx_devel/:Z \
+            --workdir=/awx_devel ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} /start_tests.sh test_collection_all
+  api-schema:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }}
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ env.BRANCH }}  make docker-compose-build
+      - name: Check API Schema
+        run: |
+          docker run -u $(id -u) --rm -v ${{ github.workspace}}:/awx_devel/:Z \
+            --workdir=/awx_devel ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} /start_tests.sh detect-schema-change
+  ui-lint:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }}
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ env.BRANCH }} make docker-compose-build
+      - name: Run UI Linters
+        run: |
+          docker run -u $(id -u) --rm -v ${{ github.workspace}}:/awx_devel/:Z \
+            --workdir=/awx_devel ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} make ui-lint
+  ui-test:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pre-pull image to warm build cache
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }}
+      - name: Build image
+        run: |
+          DEV_DOCKER_TAG_BASE=ghcr.io/${{ github.repository_owner }} COMPOSE_TAG=${{ env.BRANCH }} make docker-compose-build
+      - name: Run UI Tests
+        run: |
+          docker run -u $(id -u) --rm -v ${{ github.workspace}}:/awx_devel/:Z \
+            --workdir=/awx_devel ghcr.io/${{ github.repository_owner }}/awx_devel:${{ env.BRANCH }} make ui-test
 ```
 </code></pre></details>
 
