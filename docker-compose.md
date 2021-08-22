@@ -43,11 +43,26 @@
 </code></pre></details>
 ----
 
-****
+**https://github.com/hanchuanchuan/goInception/blob/master/docker-compose.yml**
 <details><summary>展开</summary><pre><code>
 
 ``` yaml
+version: '2'
 
+services:
+  goinception:
+    image: hanchuanchuan/goinception
+    container_name: goinception
+    restart: always
+    # 网络模式二选一,使用主机host模式或者映射端口
+    network_mode: "host"
+    # ports:
+    #   - 4000:4000
+    volumes:
+      # 时区
+      # - /etc/localtime:/etc/localtime
+      # 配置文件
+      - ./config/config.toml:/etc/config.toml
 ```
 </code></pre></details>
 ----
