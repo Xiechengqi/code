@@ -19,6 +19,126 @@
 
 ----
 
+**https://github.com/drone/drone/blob/master/docker/Dockerfile.agent.linux.amd64**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+  
+FROM alpine:3.11 as alpine
+RUN apk add -U --no-cache ca-certificates
+
+FROM alpine:3.11
+ENV GODEBUG netdns=go
+ENV DRONE_RUNNER_OS=linux
+ENV DRONE_RUNNER_ARCH=amd64
+ENV DRONE_RUNNER_PLATFORM=linux/amd64
+ENV DRONE_RUNNER_CAPACITY=1
+ADD release/linux/amd64/drone-agent /bin/
+
+RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
+
+COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+LABEL com.centurylinklabs.watchtower.stop-signal="SIGINT"
+
+ENTRYPOINT ["/bin/drone-agent"]
+```
+</code></pre></details>
+
+----
+
+**https://github.com/drone/drone/blob/master/docker/Dockerfile.server.linux.amd64**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+# docker build --rm -f docker/Dockerfile -t drone/drone .
+
+FROM alpine:3.11 as alpine
+RUN apk add -U --no-cache ca-certificates
+
+FROM alpine:3.11
+EXPOSE 80 443
+VOLUME /data
+
+RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
+
+ENV GODEBUG netdns=go
+ENV XDG_CACHE_HOME /data
+ENV DRONE_DATABASE_DRIVER sqlite3
+ENV DRONE_DATABASE_DATASOURCE /data/database.sqlite
+ENV DRONE_RUNNER_OS=linux
+ENV DRONE_RUNNER_ARCH=amd64
+ENV DRONE_SERVER_PORT=:80
+ENV DRONE_SERVER_HOST=localhost
+ENV DRONE_DATADOG_ENABLED=true
+ENV DRONE_DATADOG_ENDPOINT=https://stats.drone.ci/api/v1/series
+
+COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+ADD release/linux/amd64/drone-server /bin/
+ENTRYPOINT ["/bin/drone-server"]
+```
+</code></pre></details>
+
+----
+
+**https://github.com/jumpserver/jumpserver/blob/master/Dockerfile**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+# 编译代码
+FROM python:3.8.6-slim as stage-build
+MAINTAINER JumpServer Team <ibuler@qq.com>
+ARG VERSION
+ENV VERSION=$VERSION
+
+WORKDIR /opt/jumpserver
+ADD . .
+RUN cd utils && bash -ixeu build.sh
+
+
+# 构建运行时环境
+FROM python:3.8.6-slim
+ARG PIP_MIRROR=https://pypi.douban.com/simple
+ENV PIP_MIRROR=$PIP_MIRROR
+ARG PIP_JMS_MIRROR=https://pypi.douban.com/simple
+ENV PIP_JMS_MIRROR=$PIP_JMS_MIRROR
+
+WORKDIR /opt/jumpserver
+
+COPY ./requirements/deb_buster_requirements.txt ./requirements/deb_buster_requirements.txt
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list \
+    && sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list \
+    && apt update \
+    && grep -v '^#' ./requirements/deb_buster_requirements.txt | xargs apt -y install \
+    && rm -rf /var/lib/apt/lists/* \
+    && localedef -c -f UTF-8 -i zh_CN zh_CN.UTF-8 \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+COPY ./requirements/requirements.txt ./requirements/requirements.txt
+RUN pip install --upgrade pip==20.2.4 setuptools==49.6.0 wheel==0.34.2 -i ${PIP_MIRROR} \
+    && pip config set global.index-url ${PIP_MIRROR} \
+    && pip install --no-cache-dir $(grep 'jms' requirements/requirements.txt) -i ${PIP_JMS_MIRROR} \
+    && pip install --no-cache-dir -r requirements/requirements.txt
+
+COPY --from=stage-build /opt/jumpserver/release/jumpserver /opt/jumpserver
+RUN mkdir -p /root/.ssh/ \
+    && echo "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile /dev/null" > /root/.ssh/config
+
+RUN echo > config.yml
+VOLUME /opt/jumpserver/data
+VOLUME /opt/jumpserver/logs
+
+ENV LANG=zh_CN.UTF-8
+
+EXPOSE 8070
+EXPOSE 8080
+ENTRYPOINT ["./entrypoint.sh"]
+```
+</code></pre></details>
+
+----
+
 **https://github.com/hhyo/Archery/blob/master/src/docker/Dockerfile**
 <details><summary>展开</summary><pre><code>
 
