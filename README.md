@@ -8,5 +8,3 @@
 * https://github.com/zoo-js/.github
 * https://github.com/actions-cool
 * https://github.com/nvuillam/vscode-groovy-lint/blob/master/.github/workflows
-
-test vscode in github
