@@ -208,6 +208,7 @@ services:
      networks:
        - default  
 
+
 #  nginx:
 #     image: opsmanage-nginx
 #     container_name: nginx
