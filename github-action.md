@@ -20,6 +20,95 @@
 ----
 
 
+**https://github.com/apolloconfig/apollo/blob/master/.github/workflows/build.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        jdk: [7, 8, 11]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up JDK
+      uses: actions/setup-java@v1
+      with:
+        java-version: ${{ matrix.jdk }}
+    - name: Cache Maven packages
+      uses: actions/cache@v1
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    - name: Build SDK with JDK 7
+      if: matrix.jdk == '7'
+      run: mvn clean compile -pl apollo-client,apollo-mockserver,apollo-openapi -am -Dmaven.gitcommitid.skip=true
+    - name: JDK 8
+      if: matrix.jdk == '8'
+      run: mvn -B clean package -P travis jacoco:report -Dmaven.gitcommitid.skip=true
+    - name: JDK 11 
+      if: matrix.jdk == '11'
+      run: mvn clean compile -Dmaven.gitcommitid.skip=true
+    - name: Upload coverage to Codecov
+      if: matrix.jdk == '8'
+      uses: codecov/codecov-action@v1
+      with:
+        file: ${{ github.workspace }}/apollo-*/target/site/jacoco/jacoco.xml
+```
+</code></pre></details>
+
+----
+
+**https://github.com/apolloconfig/apollo/blob/master/.github/workflows/release.yml**
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+name: publish sdks
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'Maven Repository(snapshots or releases)'
+        required: true
+        default: 'snapshots'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Maven Central Repository
+      uses: actions/setup-java@v1
+      with:
+        java-version: 7
+        server-id: ${{ github.event.inputs.repository }}
+        server-username: MAVEN_USERNAME
+        server-password: MAVEN_CENTRAL_TOKEN
+        gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+        gpg-passphrase: MAVEN_GPG_PASSPHRASE
+    - name: Publish to Apache Maven Central
+      run: mvn clean deploy -pl apollo-client,apollo-mockserver,apollo-openapi -am -DskipTests=true -Prelease "-Dreleases.repo=https://oss.sonatype.org/service/local/staging/deploy/maven2" "-Dsnapshots.repo=https://oss.sonatype.org/content/repositories/snapshots"
+      env:
+        MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+        MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+        MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+```
+</code></pre></details>
+
+----
+
+
 **https://github.com/jumpserver/jumpserver/blob/master/.github/workflows/release-drafter.yml**
 <details><summary>展开</summary><pre><code>
 
