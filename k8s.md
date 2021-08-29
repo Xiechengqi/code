@@ -1,3 +1,25 @@
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
+
+****
+<details><summary>展开</summary><pre><code>
+
+``` yaml
+
+```
+</code></pre></details>
+
+----
+
+****
+<details><summary>展开</summary><pre><code>
 
 ``` yaml
 ---
@@ -75,3 +97,6 @@ spec:
         persistentVolumeClaim:
           claimName: mysql-pv-claim
 ```
+</code></pre></details>
+
+----
